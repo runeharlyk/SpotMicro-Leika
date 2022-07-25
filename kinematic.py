@@ -1,9 +1,11 @@
 import numpy as np
 from math import *
 from threading import Thread
+from adafruit_servokit import ServoKit
+from gpiozero import Button
 import logging
 from IMU import IMU
-
+import time
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -14,7 +16,7 @@ logging.basicConfig(
 )
 
 
-#leika walk(x,y,a)
+#leika walk(x,y,z,a)
 
 class Movement(Thread):
     """docstring for Movement."""
@@ -24,84 +26,143 @@ class Movement(Thread):
         self.kinematic = Kinematic()
         self.imu = IMU()
         self.servos = ServoKit(channels=16, frequency=50, reference_clock_speed=25000000)
-        self.state = "walk" #idle, Stand || IMU, Walk
-        self.isActive = False
+        self.state = "walk"
+        self.target_state = "walk" #idle, Stand || IMU, Walk
+        self.isActive = True
 
-        self.xStepTarget = 0.0001 # cant be 0
-        self.yStepTarget = 0.0001 # cant be 0
+        self.button = Button(4, hold_time=2)
+        self.button.when_pressed = self.toogleMode
+        #button.when_held = shutdown
+
         self.__min_servo = np.array([0 ,  0,  0,  0, 40, 10, 0,  0, 20, 90, 40,10])
         self.__max_servo = np.array([90,150,130,180,150,155,90,150,140,180,180,155])
+        self.pose([0,120,90,180,60,90,0,120,90,180,60,90])
+
+        # Private walk variables
+        self.__step_incr = np.array([15,0,-7,7]) #np.array([0,0,0,0])SideHop  #np.array([0,0,0,0])HOP
+        self.__step_dir = np.array([-1,-1,-1,-1]) #np.array([-1,5,-1,5])sideHop #np.array([-1,-1,5,5])HOP
+        self.__xStepConst = 0
+        self.__yStepConst = 0
+        self.__current_x = 0
+        self.__current_y = 0               # Walking y
+        self.__step_theta = 0           # Walking angle
+        self.__step_height = 0          # Ground to body height
+        self.__step_arc_height = 50     # Step arc height
+        self.__step_accel_factor = 10
+        self.__step_res = 15
 
         time.sleep(2)
         self.imu.Error_value_accel_data,self.imu.Error_value_gyro_data=self.imu.average_filter()
         time.sleep(1)
 
-        # Private walk variables
-        self.__step_width_y = 0.0001      # Step size
-        self.__step_width_x = 0.0001      # Step size
-        self.__step_height = 0          # Ground to body height
-        self.__step_arc_height = 50     # Step arc height
-        self.__step_incr = self.__step_width*-1
-        self.__step_incr_size = -self.__step_width/30
-        self.__step_accel_factor = 5
-        self.__num_step = 0
-
         self.loop()
 
-    def loop():
+    def toogleMode(self):
+        if self.state == "stand":
+            self.state = "walk"
+        elif self.state == "walk":
+            self.state = "rest"
+        elif self.state == "rest":
+            self.state = "stand"
+
+    def loop(self):
         while self.isActive:
-            if self.state == "stand":
+            if self.state == "walk":
+                self.walk_curve(50)
+            elif (self.__current_x != 0 or self.__current_y != 0):
+                self.walk_curve(0,0)
+            elif self.state == "stand":
                 self.stand()
-            elif self.state == "walk":
-                self.walk()
+            elif self.state == "rest":
+                self.pose([0,120,90,180,60,90,0,120,90,180,60,90])
 
-    def walk():
-        #start_time = time.time()#perf_counter()
-        first_height = self.__step_height
-        second_height = self.__step_height
-        if self.__step_incr_size < 0:
-            first_height  += (abs(self.__step_incr)-self.__step_width_x)/self.__step_width_x*self.__step_arc_height
-        else:
-            second_height += (abs(self.__step_incr)-self.__step_width_x)/self.__step_width_x*self.__step_arc_height
+    def curve(self, x, y, type=2):
+        return abs(x)/15*y-y
+        #return -(y/100)*x**2+y
 
-        IK = self.kinematic.legIK(-61,-130-second_height,self.__step_incr)
+    def walk_curve(self, target_x = 50, target_y = 0, theta = 0, height = 0, arcHeight = 70):
+
+        for i in range(4):
+            if self.__step_incr[i] <= -self.__step_res: # Current step incr is less than -Step resolution
+                self.__step_dir[i] = 3 # Set the step increment size to 5
+
+                self.__current_x += self.__step_accel_factor if target_x > self.__current_x else -self.__step_accel_factor # Make the current step size bigger
+                self.__current_y += self.__step_accel_factor if target_y > self.__current_y else -self.__step_accel_factor # Make the current step size bigger
+                #self.__current_x = self.clamp(self.__current_x)#max(min(self.__current_x,abs(target_x)), -abs(target_x)) # Clamp step size
+                self.__xStepConst = self.__current_x/self.__step_res
+                #self.__current_y = #max(min(self.__current_y,abs(target_y)), -abs(target_y))
+                self.__yStepConst = self.__current_y/self.__step_res
+
+            elif self.__step_incr[i] >= self.__step_res: # Current step incr is bigger or = Step resolution
+                self.__step_dir[i] = -1
+            self.__step_incr[i] += self.__step_dir[i] # get next increment
+
+
+
+        heightOffset = height-self.curve(self.__step_incr[0], arcHeight) if self.__step_dir[0]> 0 else 0
+        IK = self.kinematic.legIK(-61+self.__step_incr[0]*self.__yStepConst,-130+heightOffset,-60+self.__step_incr[0]*self.__xStepConst)
         LF = (degrees(pi/2 - IK[0]), degrees(pi/3 - IK[1]), degrees(pi - IK[2]))
 
-        IK = self.kinematic.legIK(-61,-130-height,self.__step_incr*-1)
+        heightOffset = height-self.curve(self.__step_incr[1], arcHeight) if self.__step_dir[1]> 0 else 0
+        IK = self.kinematic.legIK(-61+self.__step_incr[1]*self.__yStepConst*-1,-130+heightOffset,-60+self.__step_incr[1]*self.__xStepConst)
         RF = (degrees(pi/2 + IK[0]), degrees(2 * pi/3 + IK[1]), degrees(IK[2]))
 
-        IK = self.kinematic.legIK(-61,-130-height,self.__step_incr*-1)
+        heightOffset = height-self.curve(self.__step_incr[2], arcHeight) if self.__step_dir[2]> 0 else 0
+        IK = self.kinematic.legIK(-61+self.__step_incr[2]*self.__yStepConst,-130+heightOffset,-60+self.__step_incr[2]*self.__xStepConst)
         LB = (degrees(pi/2 + (IK[0])), degrees(pi/3 - IK[1]), degrees(pi - IK[2]))
 
-        IK = self.kinematic.legIK(-61,-130-second_height,self.__step_incr)
+        heightOffset = height-self.curve(self.__step_incr[3], arcHeight) if self.__step_dir[3]> 0 else 0
+        IK = self.kinematic.legIK(-61+self.__step_incr[3]*self.__yStepConst*-1,-130+heightOffset,-60+self.__step_incr[3]*self.__xStepConst)
         RB = (degrees(pi/2 - IK[0]), degrees(2 * pi/3  + IK[1]), degrees(IK[2]))
 
-        #end_time = time.time()#perf_counter()
-        #print("Processing took: {} s".format(end_time-start_time))
         self.pose([LF[2]-30,LF[1]-50,LF[0],RF[2]+30,RF[1]+50,RF[0],LB[2]-30,LB[1]-50,LB[0],RB[2]+30,RB[1]+50,RB[0]])
+        time.sleep(0.015)
+    # def walk(self):
+    #     #start_time = time.time()#perf_counter()
+    #     first_height = self.__step_height
+    #     second_height = self.__step_height
+    #     if self.__step_incr_size < 0:
+    #         first_height  += (abs(self.__step_incr)-self.__step_width_x)/self.__step_width_x*self.__step_arc_height
+    #     else:
+    #         second_height += (abs(self.__step_incr)-self.__step_width_x)/self.__step_width_x*self.__step_arc_height
+    #
+    #     IK = self.kinematic.legIK(-61,-130-second_height,self.__step_incr)
+    #     LF = (degrees(pi/2 - IK[0]), degrees(pi/3 - IK[1]), degrees(pi - IK[2]))
+    #
+    #     IK = self.kinematic.legIK(-61,-130-height,self.__step_incr*-1)
+    #     RF = (degrees(pi/2 + IK[0]), degrees(2 * pi/3 + IK[1]), degrees(IK[2]))
+    #
+    #     IK = self.kinematic.legIK(-61,-130-height,self.__step_incr*-1)
+    #     LB = (degrees(pi/2 + (IK[0])), degrees(pi/3 - IK[1]), degrees(pi - IK[2]))
+    #
+    #     IK = self.kinematic.legIK(-61,-130-second_height,self.__step_incr)
+    #     RB = (degrees(pi/2 - IK[0]), degrees(2 * pi/3  + IK[1]), degrees(IK[2]))
+    #
+    #     #end_time = time.time()#perf_counter()
+    #     #print("Processing took: {} s".format(end_time-start_time))
+    #     self.pose([LF[2]-30,LF[1]-50,LF[0],RF[2]+30,RF[1]+50,RF[0],LB[2]-30,LB[1]-50,LB[0],RB[2]+30,RB[1]+50,RB[0]])
+    #
+    #     if self.__step_incr >= self.__step_width_x or self.__step_incr <= -self.__step_width_x:
+    #         self.__step_incr_size *= -1
+    #     self.__step_incr+=self.__step_incr_size
+    #
+    #     if self.__num_step > 2:
+    #         self.__step_width_x += self.__step_accel_factor
+    #         self.__step_width_x = max(min(self.__step_width_x,self.xStepTarget), 0.0001)
+    #         mulplyer = -1 if self.__step_incr_size > 0 else 1
+    #         self.__step_incr_size = self.__step_width_x/30*mulplyer
+    #         self.__step_incr = self.__step_width_x*mulplyer
+    #         self.__num_step = 0
 
-        if self.__step_incr >= self.__step_width_x or self.__step_incr <= -self.__step_width_x:
-            self.__step_incr_size *= -1
-            self.__num_step+=1
-        self.__step_incr+=self.__step_incr_size
-
-        if self.__num_step > 2:
-            self.__step_width_x += self.__step_accel_factor
-            self.__step_width_x = max(min(self.__step_width_x,self.xStepTarget), 0.0001)
-            mulplyer = -1 if self.__step_incr_size > 0 else 1
-            self.__step_incr_size = self.__step_width_x/30*mulplyer
-            self.__step_incr = self.__step_width_x*mulplyer
-            self.__num_step = 0
-
-    def stand(): # IMU
-        r,p,y=imu.imuUpdate()
+    def stand(self): # IMU
+        r,p,y=self.imu.imuUpdate()
         (LF, RF, LB, RB) = self.kinematic.calcFeet(p/40,0,r/40,0,0,0) #y/40
         self.pose([LF[2]-30,LF[1]-50,LF[0],RF[2]+30,RF[1]+50,RF[0],LB[2]-30,LB[1]-50,LB[0],RB[2]+30,RB[1]+50,RB[0]])
         time.sleep(0.001)
 
-    def pose(angles):
-        self.angles = poses
-        for i in range(len(poses)):
+    def pose(self, angles):
+        self.angles = angles
+        for i in range(len(angles)):
             # map(0,270,0,180)
             # if i==0 or i==6:
             #     self.angles[i]*=self.bigServeConst
