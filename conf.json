@@ -1,0 +1,42 @@
+{
+  "left_distance_sensor" : {
+    "echo": 23,
+    "trig": 24,
+    "max_distance": 3,
+    "threshold_distance": 0.1
+  },
+  "right_distance_sensor" : {
+    "echo": 21,
+    "trig": 20,
+    "max_distance": 3,
+    "threshold_distance": 0.1
+  },
+  "picamera" : {
+    "rotation": 0,
+    "resolution":[640,480]
+  },
+  "camera" : false,
+  "oled" : true,
+  "imu" : true,
+  "button": {
+    "pin": 4,
+    "hold_time": 2
+  },
+  "button_led": 17,
+  "serial": false,
+  "dht": {
+    "type":"dht22",
+    "pin":27
+  },
+  "battery":{
+    "type": "li-ion",
+    "min_voltage": 6,
+    "max_voltage": 8.4
+  },
+  "aux_speakers":{
+    "max_volume":-25.0
+  },
+  "frequency":0.1,
+  "servo":{
+  }
+}
