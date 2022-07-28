@@ -1,15 +1,10 @@
-from Movement import Movement
-from servo import Motion
-from IMU import IMU
-from Gpio import Gpio
-
 import logging
 import asyncio
 import json
 
-
-#sys.path.insert(0,".")
-#from lib.system import SysInfo
+from Movement import Movement
+from IMU import IMU
+from Gpio import Gpio
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,20 +44,13 @@ class Spot(object):
             logger.warning("Following exception was raised: {}".format(e))
         return False
 
-    def startup(self, sim = False):
+    def startup(self):
         self.threads[2].button.when_pressed = self.threads[0].toogleMode
         logger.info("Starting threads:")
         for thread in self.threads:
             logger.info("Running thread: {thread_name}".format(thread_name=thread.name))
             thread.start()
         logger.info("Threads are started")
-        #self.loop()
-
-    def loop():
-        try:
-            asyncio.get_event_loop().run_forever()
-        except KeyboardInterrupt:
-            self.cleanup()
 
     def cleanup(self):
         logger.info("Terminating threads")
@@ -82,6 +70,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("User interrupted program")
         Leika.cleanup()
-    # pip freeze > requirements.txt
-
-    # pip install -r requirements.txt
