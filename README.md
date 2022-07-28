@@ -4,7 +4,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/runeharlyk/SpotMicro-Leika">
-    <img src="assets/logo.jpg" alt="Logo" width="80" height="80">
+    <img src="assets/logo.jpg" alt="Logo" width="180" height="180">
   </a>
 
 <h3 align="center">Spot Micro - Leika</h3>
