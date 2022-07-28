@@ -63,7 +63,6 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
-
 ## Built With
 * React.js
 * threading
@@ -71,6 +70,11 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 * gpiozero
 
 <p align="right">(<a href="#top">back to top</a>)</p>
+
+### 3D printed body
+* [robjk reinforced shoulder remix](https://www.thingiverse.com/thing:4937631)
+* [Kooba SpotMicroESP32 remix](https://www.thingiverse.com/thing:4559827)
+* [KDY0532 original design](https://www.thingiverse.com/thing:3445283)
 
 
 ### Electronics
