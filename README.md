@@ -64,9 +64,27 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 
 
 
-### Built With
+## Built With
+* React.js
+* threading
+* tornado
+* gpiozero
 
-* [![React][React.js]][React-url]
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+### Electronics
+
+* Raspberry pi 3b
+* PCA9685 servo board
+* 12x 20kg(or higher) servo motors
+* MPU6050 
+* 20A DC-DC Buck Converter
+* 2x HC-SR04 Ultrasonic Distance Sensor
+* 0.96" SD1306 OLED diplay 
+* ACS712 current sensor
+* ADS1115 12 bit analog to digital converter
+* DHT22 temperature and humidity sensor
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -81,10 +99,7 @@ To get a local copy up and running follow these simple example steps.
 ### Prerequisites
 
 This is an example of how to list things you need to use the software and how to install them.
-* pip
-  ```sh
-  pip install -r requirements.txt
-  ```
+1. Install headless raspbian on your raspberry pi
 
 ### Installation
 
@@ -128,7 +143,7 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 - [ ] Feature 3
     - [ ] Nested Feature
 
-See the [open issues](https://github.com/github_username/repo_name/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/runeharlyk/SpotMicro-Leika/issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -164,9 +179,9 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Your Name - [@twitter_handle](https://twitter.com/twitter_handle) - email@email_client.com
+Rune Harlyk - [@runeharlyk](https://twitter.com/runeharlyk)
 
-Project Link: [https://github.com/github_username/repo_name](https://github.com/github_username/repo_name)
+Project Link: [https://github.com/runeharlyk/SpotMicro-Leika](https://github.com/runeharlyk/SpotMicro-Leika)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
